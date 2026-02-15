@@ -30,6 +30,21 @@ make run
 
 On first run, Docker will build the compiler image (takes ~1 minute). Subsequent runs reuse the cached image.
 
+### Rebuilding the Docker Image
+
+The Docker image is built automatically on first run, but you'll need to manually rebuild it if you change either of these files:
+
+- `Dockerfile` — the image definition (toolchain packages, base image)
+- `Makefile.build` — the build logic baked into the image at `/opt/Makefile.build`
+
+To rebuild:
+
+```bash
+docker compose build
+```
+
+Changes to source files (`src/`, `test/`) do **not** require a rebuild — they're volume-mounted into the container at runtime.
+
 ## Makefile Reference
 
 | Command | Description |
