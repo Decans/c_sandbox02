@@ -48,6 +48,72 @@ Build logic is split across two Makefiles:
 
 You always run the host-facing targets (`make build`, `make run`, etc.). The container-internal Makefile is an implementation detail.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Host["Host Machine"]
+        User["Developer"]
+        VSCode["VS Code + Extensions"]
+        HostMake["Makefile (dispatcher)"]
+        DC["docker compose run --rm"]
+        SrcVol["src/ test/ unity/"]
+    end
+
+    subgraph Image["Docker Image (built from Dockerfile)"]
+        BuildMake["/opt/Makefile.build"]
+        Toolchain["clang | make | gdb | valgrind"]
+    end
+
+    subgraph Container["Ephemeral Container"]
+        ContMake["make -f /opt/Makefile.build &lt;target&gt;"]
+        Clang["clang (compile)"]
+        Runner["./build/main or ./build/test_runner"]
+        BuildDir["build/ (output artifacts)"]
+    end
+
+    User -- "make build | run | test | clean" --> HostMake
+    VSCode -- "Tasks (Ctrl+Shift+B)" --> HostMake
+    HostMake -- "docker compose run --rm build" --> DC
+    DC -- "spins up container" --> Container
+    DC -. "volume mount .:/workspace" .-> SrcVol
+    SrcVol -. "mounted at /workspace" .-> Container
+    BuildMake -- "baked into image" --> ContMake
+    ContMake -- "compiles sources" --> Clang
+    Clang --> BuildDir
+    ContMake -- "runs binary" --> Runner
+    Runner --> BuildDir
+    Toolchain -- "available in container" --> Clang
+
+    style Host fill:#e8f4f8,stroke:#2196F3
+    style Image fill:#fff3e0,stroke:#FF9800
+    style Container fill:#e8f5e9,stroke:#4CAF50
+```
+
+### Build Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant HM as Makefile (host)
+    participant DC as docker compose
+    participant C as Container
+    participant BM as Makefile.build
+    participant CC as clang
+
+    Dev->>HM: make run
+    HM->>DC: docker compose run --rm build<br/>make -f /opt/Makefile.build run
+    DC->>C: Create ephemeral container<br/>Mount .:/workspace
+    C->>BM: make -f /opt/Makefile.build run
+    BM->>CC: clang -Wall -Wextra -Werror<br/>-std=c17 -g -Isrc -c src/*.c
+    CC-->>BM: build/*.o
+    BM->>CC: clang -o build/main build/*.o
+    CC-->>BM: build/main
+    BM->>C: ./build/main
+    C-->>Dev: "Hello from clang in Docker!"
+    DC->>C: Remove container (--rm)
+```
+
 ## Project Structure
 
 ```
