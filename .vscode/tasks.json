@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "make build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Run",
+      "type": "shell",
+      "command": "make run",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": "make test",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Clean",
+      "type": "shell",
+      "command": "make clean",
+      "problemMatcher": []
+    }
+  ]
+}
