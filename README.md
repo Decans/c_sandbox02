@@ -53,6 +53,8 @@ Changes to source files (`src/`, `test/`) do **not** require a rebuild — they'
 | `make run` | Build and run the binary |
 | `make test` | Build and run unit tests |
 | `make clean` | Remove build artifacts |
+| `make debug` | Build and start the debug container |
+| `make debug-stop` | Stop and remove the debug container |
 
 ### How the Split Makefile Works
 
@@ -77,32 +79,44 @@ flowchart TD
 
     subgraph Image["Docker Image (built from Dockerfile)"]
         BuildMake["/opt/Makefile.build"]
-        Toolchain["clang | make | gdb | valgrind"]
+        Toolchain["clang | make | gdb | gdbserver | valgrind"]
     end
 
-    subgraph Container["Ephemeral Container"]
+    subgraph BuildContainer["Ephemeral Build Container"]
         ContMake["make -f /opt/Makefile.build &lt;target&gt;"]
         Clang["clang (compile)"]
         Runner["./build/main or ./build/test_runner"]
         BuildDir["build/ (output artifacts)"]
     end
 
+    subgraph DebugContainer["Debug Container (long-lived)"]
+        GDB["gdb (via pipeTransport)"]
+        DebugBin["./build/main (debuggee)"]
+    end
+
     User -- "make build | run | test | clean" --> HostMake
+    User -- "make debug" --> HostMake
     VSCode -- "Tasks (Ctrl+Shift+B)" --> HostMake
+    VSCode -- "F5 (pipeTransport)" --> DebugContainer
     HostMake -- "docker compose run --rm build" --> DC
-    DC -- "spins up container" --> Container
+    HostMake -- "docker compose up -d debug" --> DebugContainer
+    DC -- "spins up container" --> BuildContainer
     DC -. "volume mount .:/workspace" .-> SrcVol
-    SrcVol -. "mounted at /workspace" .-> Container
+    SrcVol -. "mounted at /workspace" .-> BuildContainer
+    SrcVol -. "mounted at /workspace" .-> DebugContainer
     BuildMake -- "baked into image" --> ContMake
     ContMake -- "compiles sources" --> Clang
     Clang --> BuildDir
     ContMake -- "runs binary" --> Runner
     Runner --> BuildDir
-    Toolchain -- "available in container" --> Clang
+    Toolchain -- "available in containers" --> Clang
+    Toolchain -- "available in containers" --> GDB
+    GDB -- "launches" --> DebugBin
 
     style Host fill:#e8f4f8,stroke:#2196F3
     style Image fill:#fff3e0,stroke:#FF9800
-    style Container fill:#e8f5e9,stroke:#4CAF50
+    style BuildContainer fill:#e8f5e9,stroke:#4CAF50
+    style DebugContainer fill:#fce4ec,stroke:#E91E63
 ```
 
 ### Build Flow
@@ -129,6 +143,38 @@ sequenceDiagram
     DC->>C: Remove container (--rm)
 ```
 
+### Debug Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant VS as VS Code
+    participant HM as Makefile (host)
+    participant DC as docker compose
+    participant BC as Build Container
+    participant DBG as Debug Container
+    participant GDB as gdb
+
+    Dev->>VS: F5 (Start Debugging)
+    VS->>HM: preLaunchTask: make debug
+    HM->>DC: docker compose run --rm build<br/>make -f /opt/Makefile.build build
+    DC->>BC: Compile sources
+    BC-->>HM: Build complete
+    HM->>DC: docker compose up -d debug
+    DC->>DBG: Start debug container<br/>(sleep infinity)
+    HM-->>VS: Task complete
+    VS->>DBG: docker compose exec -T debug<br/>/usr/bin/gdb (pipeTransport)
+    DBG->>GDB: Launch gdb with build/main
+    GDB-->>VS: MI protocol over stdin/stdout
+    Dev->>VS: Set breakpoints, step, inspect
+    VS->>GDB: GDB/MI commands
+    GDB-->>VS: Execution state, variables
+    Dev->>VS: Stop debugging
+    VS->>HM: postDebugTask: make debug-stop
+    HM->>DC: docker compose stop/rm debug
+    DC->>DBG: Remove container
+```
+
 ## Project Structure
 
 ```
@@ -141,7 +187,8 @@ c_sandbox02/
 ├── README.md               # This file
 ├── .gitignore
 ├── .vscode/
-│   ├── tasks.json          # Build/Run/Test/Clean tasks
+│   ├── launch.json         # Debug configuration (gdb via pipeTransport)
+│   ├── tasks.json          # Build/Run/Test/Clean/Debug tasks
 │   ├── settings.json       # Editor settings (C17, format-on-save)
 │   └── extensions.json     # Recommended extensions (no remote-containers)
 ├── src/
@@ -151,6 +198,29 @@ c_sandbox02/
 ├── test/
 │   └── test_greeter.c      # Unit tests
 └── unity/                  # Unity test framework (git submodule)
+```
+
+## Debugging
+
+The project supports debugging via GDB running inside the Docker container, with VS Code connecting through `pipeTransport`. No local debugger installation is needed — VS Code pipes GDB commands directly into the container.
+
+### Quick Start
+
+1. Set breakpoints in VS Code
+2. Press **F5** (or **Run > Start Debugging**)
+3. VS Code will automatically:
+   - Build the code and start a debug container (via the `Debug` preLaunchTask)
+   - Connect GDB inside the container via `docker compose exec`
+4. Step through code, inspect variables, set watches, etc.
+5. When you stop debugging, the `Debug Stop` postDebugTask cleans up the container
+
+### Manual Debugging
+
+You can manage the debug container manually:
+
+```bash
+make debug        # Build and start the debug container
+make debug-stop   # Stop and remove the debug container
 ```
 
 ## Testing

@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(gdb) Docker Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "/workspace/build/main",
+      "args": [],
+      "cwd": "/workspace",
+      "MIMode": "gdb",
+      "pipeTransport": {
+        "pipeCwd": "${workspaceFolder}",
+        "pipeProgram": "docker",
+        "pipeArgs": ["compose", "exec", "-T", "debug", "sh", "-c"],
+        "debuggerPath": "/usr/bin/gdb"
+      },
+      "sourceFileMap": {
+        "/workspace": "${workspaceFolder}"
+      },
+      "preLaunchTask": "Debug",
+      "postDebugTask": "Debug Stop"
+    }
+  ]
+}

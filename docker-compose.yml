@@ -3,3 +3,11 @@ services:
     build: .
     volumes:
       - .:/workspace
+
+  debug:
+    build: .
+    volumes:
+      - .:/workspace
+    stdin_open: true
+    tty: true
+    command: sleep infinity

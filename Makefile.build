@@ -14,7 +14,7 @@ TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 LIB_SRCS = $(filter-out $(SRC_DIR)/main.c, $(SRCS))
 TEST_TARGET = $(BUILD_DIR)/test_runner
 
-.PHONY: build run test clean
+.PHONY: build run test clean debug
 
 build: $(TARGET)
 
@@ -37,3 +37,6 @@ $(TEST_TARGET): $(TEST_SRCS) $(LIB_SRCS) $(UNITY_DIR)/unity.c
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+debug: build
+	gdbserver --no-disable-randomization :2345 ./$(TARGET)

@@ -25,6 +25,18 @@
       "type": "shell",
       "command": "make clean",
       "problemMatcher": []
+    },
+    {
+      "label": "Debug",
+      "type": "shell",
+      "command": "make debug",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Debug Stop",
+      "type": "shell",
+      "command": "make debug-stop",
+      "problemMatcher": []
     }
   ]
 }
