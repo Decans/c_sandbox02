@@ -6,7 +6,7 @@ void setUp(void) {}
 void tearDown(void) {}
 
 void test_greeting_returns_expected_string(void) {
-    TEST_ASSERT_EQUAL_STRING("Hello from clang in Docker!", get_greeting());
+    TEST_ASSERT_EQUAL_STRING("Hello from clang in Docker!\n this is crazy", get_greeting());
 }
 
 int main(void) {
