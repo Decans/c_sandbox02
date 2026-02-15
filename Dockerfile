@@ -9,4 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     valgrind \
     && rm -rf /var/lib/apt/lists/*
 
+COPY Makefile.build /opt/Makefile.build
+
 WORKDIR /workspace

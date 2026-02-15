@@ -39,14 +39,14 @@ On first run, Docker will build the compiler image (takes ~1 minute). Subsequent
 | `make test` | Build and run unit tests |
 | `make clean` | Remove build artifacts |
 
-### How the Two-Layer Makefile Works
+### How the Split Makefile Works
 
-The Makefile has two layers of targets:
+Build logic is split across two Makefiles:
 
-- **Host-facing targets** (`build`, `run`, `test`, `clean`) — these invoke `docker compose run --rm build make _<target>`, spinning up a short-lived container.
-- **Container-internal targets** (`_build`, `_run`, `_test`, `_clean`) — these run inside the container and do the actual compilation with clang.
+- **`Makefile`** (host) — a thin dispatcher that calls `docker compose run --rm build make -f /opt/Makefile.build <target>`, spinning up a short-lived container for each command.
+- **`Makefile.build`** (container) — baked into the Docker image at `/opt/Makefile.build`. Contains all compiler config, source/object rules, and test compilation. This file is never referenced from the host directly.
 
-You always run the host-facing targets. The internal targets are implementation details.
+You always run the host-facing targets (`make build`, `make run`, etc.). The container-internal Makefile is an implementation detail.
 
 ## Project Structure
 
@@ -54,7 +54,8 @@ You always run the host-facing targets. The internal targets are implementation 
 c_sandbox02/
 ├── Dockerfile              # Compiler image (clang, make, gdb, valgrind)
 ├── docker-compose.yml      # Service definition for build container
-├── Makefile                # Two-layer host → Docker → compile targets
+├── Makefile                # Host-side dispatcher (docker compose run)
+├── Makefile.build          # Container-internal build logic (baked into image)
 ├── CLAUDE.md               # Claude Code instructions
 ├── README.md               # This file
 ├── .gitignore
